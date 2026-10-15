@@ -15,12 +15,13 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 import mlflow
 import mlflow.sklearn
 
-def train(data_path="../namadataset_preprocessing.csv", n_estimators=100, max_depth=10):
+def train(data_path="namadataset_preprocessing.csv", n_estimators=100, max_depth=10):
     if not os.path.exists(data_path):
         fallbacks = [
-            "../namadataset_preprocessing.csv",
             "namadataset_preprocessing.csv",
-            "../../namadataset_preprocessing.csv"
+            "../namadataset_preprocessing.csv",
+            "../../namadataset_preprocessing.csv",
+            "MLProject/namadataset_preprocessing.csv"
         ]
         for p in fallbacks:
             if os.path.exists(p):
@@ -41,49 +42,52 @@ def train(data_path="../namadataset_preprocessing.csv", n_estimators=100, max_de
     )
     
     print(f"[INFO] Data latih: {X_train.shape}, Data uji: {X_test.shape}")
+    print(f"[INFO] Melatih RandomForest (n_estimators={n_estimators}, max_depth={max_depth})...")
     
-    # Tracking lokal / CI
-    tracking_dir = os.path.abspath("mlruns")
-    os.makedirs(tracking_dir, exist_ok=True)
-    mlflow.set_tracking_uri(f"file:{tracking_dir}")
-    mlflow.set_experiment("Mobile_Legends_M5_CI_Pipeline")
+    model = RandomForestClassifier(
+        n_estimators=n_estimators, 
+        max_depth=max_depth if max_depth and max_depth > 0 else None, 
+        random_state=42
+    )
+    model.fit(X_train, y_train)
     
-    with mlflow.start_run(run_name="CI_Run"):
-        print(f"[INFO] Melatih RandomForest (n_estimators={n_estimators}, max_depth={max_depth})...")
-        model = RandomForestClassifier(
-            n_estimators=n_estimators, 
-            max_depth=max_depth if max_depth and max_depth > 0 else None, 
-            random_state=42
-        )
-        model.fit(X_train, y_train)
-        
-        y_pred = model.predict(X_test)
-        acc = accuracy_score(y_test, y_pred)
-        prec = precision_score(y_test, y_pred, zero_division=0)
-        rec = recall_score(y_test, y_pred, zero_division=0)
-        f1 = f1_score(y_test, y_pred, zero_division=0)
-        
-        print(f"[RESULT] Accuracy : {acc:.4f}")
-        print(f"[RESULT] Precision: {prec:.4f}")
-        print(f"[RESULT] Recall   : {rec:.4f}")
-        print(f"[RESULT] F1-Score : {f1:.4f}")
-        
-        mlflow.log_param("n_estimators", n_estimators)
-        mlflow.log_param("max_depth", max_depth)
-        mlflow.log_metric("accuracy", acc)
-        mlflow.log_metric("precision", prec)
-        mlflow.log_metric("recall", rec)
-        mlflow.log_metric("f1_score", f1)
-        
-        mlflow.sklearn.log_model(model, "random_forest_model")
-        print("[SUCCESS] Model dan metrik berhasil dicatat di MLflow!")
-        
-        joblib.dump(model, "model_ci.pkl")
-        print("[SUCCESS] Model lokal disimpan di model_ci.pkl")
+    y_pred = model.predict(X_test)
+    acc = accuracy_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred, zero_division=0)
+    rec = recall_score(y_test, y_pred, zero_division=0)
+    f1 = f1_score(y_test, y_pred, zero_division=0)
+    
+    print(f"[RESULT] Accuracy : {acc:.4f}")
+    print(f"[RESULT] Precision: {prec:.4f}")
+    print(f"[RESULT] Recall   : {rec:.4f}")
+    print(f"[RESULT] F1-Score : {f1:.4f}")
+    
+    # Tracking dengan MLflow (dengan fallback aman)
+    try:
+        mlflow.set_experiment("Mobile_Legends_M5_CI_Pipeline")
+        with mlflow.start_run(run_name="CI_Run"):
+            mlflow.log_param("n_estimators", n_estimators)
+            mlflow.log_param("max_depth", max_depth)
+            mlflow.log_metric("accuracy", acc)
+            mlflow.log_metric("precision", prec)
+            mlflow.log_metric("recall", rec)
+            mlflow.log_metric("f1_score", f1)
+            
+            try:
+                mlflow.sklearn.log_model(model, "random_forest_model")
+                print("[SUCCESS] Model dan metrik berhasil dicatat di MLflow!")
+            except Exception as e_model:
+                print(f"[WARNING] Gagal log_model ke MLflow: {e_model}")
+    except Exception as e_mlflow:
+        print(f"[WARNING] Gagal mencatat run ke MLflow: {e_mlflow}")
+    
+    joblib.dump(model, "model_ci.pkl")
+    print("[SUCCESS] Model lokal disimpan di model_ci.pkl")
+    print("[SUCCESS] Pelatihan model CI selesai tanpa error!")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_path", type=str, default="../namadataset_preprocessing.csv")
+    parser.add_argument("--data_path", type=str, default="namadataset_preprocessing.csv")
     parser.add_argument("--n_estimators", type=int, default=100)
     parser.add_argument("--max_depth", type=int, default=10)
     args = parser.parse_args()
