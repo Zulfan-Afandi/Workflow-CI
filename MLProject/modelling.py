@@ -43,6 +43,9 @@ def train(data_path="../namadataset_preprocessing.csv", n_estimators=100, max_de
     print(f"[INFO] Data latih: {X_train.shape}, Data uji: {X_test.shape}")
     
     # Tracking lokal / CI
+    tracking_dir = os.path.abspath("mlruns")
+    os.makedirs(tracking_dir, exist_ok=True)
+    mlflow.set_tracking_uri(f"file:{tracking_dir}")
     mlflow.set_experiment("Mobile_Legends_M5_CI_Pipeline")
     
     with mlflow.start_run(run_name="CI_Run"):
