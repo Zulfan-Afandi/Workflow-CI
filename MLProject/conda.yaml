@@ -1,0 +1,13 @@
+name: ml_m5_env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+    - mlflow>=2.19.0
+    - scikit-learn>=1.5.0
+    - pandas>=2.2.0
+    - numpy>=1.26.0
+    - joblib>=1.4.0
